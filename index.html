@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EV Smart Charging System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-doughnutlabel@1.0.1"></script>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+
+    h1 {
+      font-size: 1.6em;
+      margin-bottom: 5px;
+      color: #00e676;
+      text-shadow: 0 0 10px #00e67633;
+    }
+
+    .voltage-display {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+
+    canvas {
+      max-width: 360px;
+      margin: 0 auto 20px auto;
+      filter: drop-shadow(0 0 10px #00e67633);
+    }
+
+    .reading {
+      font-size: 1.2em;
+      margin-top: 10px;
+      line-height: 1.6em;
+      color: #ccc;
+    }
+
+    footer {
+      margin-top: 40px;
+      font-size: 0.9em;
+      color: #555;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.4em;
+      }
+      .voltage-display {
+        font-size: 1.2em;
+      }
+      .reading {
+        font-size: 1em;
+      }
+      canvas {
+        max-width: 90vw;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<h1>EV SMART CHARGING SYSTEM</h1>
+<div class="voltage-display" id="voltageText">Battery Voltage: -- V</div>
+<canvas id="voltageGauge"></canvas>
+
+<div class="reading">
+  <div id="currentVal">Current: -- A</div>
+  <div id="tempVal">Temperature: -- °C</div>
+</div>
+
+<footer>
+  Real-time data powered by Firebase
+</footer>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+  // === Firebase Config ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyD0XvO5-rqFT4KOem0fzmmcQbXxvMJjSAI",
+    authDomain: "ev-charger-c2857.firebaseapp.com",
+    databaseURL: "https://ev-charger-c2857-default-rtdb.firebaseio.com",
+    projectId: "ev-charger-c2857",
+    storageBucket: "ev-charger-c2857.appspot.com",
+    messagingSenderId: "72777457442",
+    appId: "1:72777457442:web:8d2d3c1226d0d2edabf3d2"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // === Gauge Setup ===
+  const ctx = document.getElementById('voltageGauge').getContext('2d');
+  const gaugeChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        label: 'Voltage',
+        data: [0.0, 1.0],
+        backgroundColor: ['#00e676', '#1f1f1f'],
+        borderWidth: 0,
+        cutout: '80%',
+        circumference: 180,
+        rotation: 270
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: {
+        animateRotate: true,
+        duration: 800
+      },
+      plugins: {
+        doughnutlabel: {
+          labels: [
+            {
+              text: 'VOLTAGE',
+              font: { size: '16' },
+              color: '#ccc'
+            },
+            {
+              text: '-- V',
+              font: { size: '28' },
+              color: '#ffffff'
+            }
+          ]
+        }
+      }
+    }
+  });
+
+  // === Firebase Listeners ===
+  db.ref('charger/voltage').on('value', snapshot => {
+    let v = parseFloat(snapshot.val()).toFixed(2);
+    const minV = 3.5, maxV = 4.0;
+    const percent = Math.min(Math.max((v - minV) / (maxV - minV), 0), 1);
+
+    // Update gauge
+    gaugeChart.data.datasets[0].data[0] = percent;
+    gaugeChart.data.datasets[0].data[1] = 1 - percent;
+    gaugeChart.options.plugins.doughnutlabel.labels[1].text = v + ' V';
+    gaugeChart.update();
+
+    // Update text
+    document.getElementById('voltageText').innerText = `Battery Voltage: ${v} V`;
+  });
+
+  db.ref('charger/current').on('value', snap => {
+    let c = parseFloat(snap.val()).toFixed(2);
+    document.getElementById('currentVal').innerText = `Current: ${c} A`;
+  });
+
+  db.ref('charger/temperature').on('value', snap => {
+    let t = parseFloat(snap.val()).toFixed(1);
+    document.getElementById('tempVal').innerText = `Temperature: ${t} °C`;
+  });
+</script>
+
+</body>
+</html>
